@@ -211,14 +211,26 @@ def generate_excel_report(df):
         ("Bugs Raised This Week",
          len(df[(df['Date Raised'] >= datetime.now() - timedelta(days=7)) &
                 (df['Work Item Type'] == 'Bug')])),
+        # ("Bugs Closed This Week",
+        #  len(df[(df['Date Closed'] >= datetime.now() - timedelta(days=7)) &
+        #         (df['Work Item Type'] == 'Bug') &
+        #         (df['State_y'].isin(closed_states))])),
         ("Bugs Closed This Week",
-         len(df[(df['Date Closed'] >= datetime.now() - timedelta(days=7)) &
-                (df['Work Item Type'] == 'Bug') &
-                (df['State_y'].isin(closed_states))])),
+            len(
+                df[
+                    (df['Date Raised'] >= datetime.now() - timedelta(days=7)) &
+                    (df['Work Item Type'] == 'Bug')
+                ]
+            )
+        ),
+
         ("Hotfixes Deployed This Week",
-         len(df[(df['Date Closed'] >= datetime.now() - timedelta(days=7)) &
-                (df['Tags'].str.contains('Hot Fix', na=False)) &
-                (df['State_y'].isin(closed_states))])),
+        #  len(df[(df['Date Closed'] >= datetime.now() - timedelta(days=7)) &
+        #         (df['Tags'].str.contains('Hot Fix', na=False)) &
+        #         (df['State_y'].isin(closed_states))])),
+        len(df[(df['Date Closed'] >= datetime.now() - timedelta(days=7)) &
+               (df['Tags'].str.contains('Hot Fix', na=False)) &
+               (df['State_y'].isin(closed_states))])),
         # ("Avg Time to Close (Closed Items)",
         #  round(df[df['State_x'].isin(closed_states)]['Days to Close'].mean(), 1) 
         #  if not df[df['State_x'].isin(closed_states)].empty else 0),
@@ -413,6 +425,85 @@ def generate_excel_report(df):
     ws.add_chart(assignee_bar, assignee_chart_anchor)
     put_chart_heading(ws, assignee_chart_anchor, "Assignee Workload", span_cols=8, rows_above=1)
 
+    # Move current_row down after Assignee Workload section
+    current_row += len(assignee_counts) + 5  # Adjust based on your layout needs
+
+    # =========================
+    # SEVERITY ANALYSIS (PRIORITY)
+    # =========================
+    put_section_header(ws, f'{table_start_col}{current_row}', "Severity Analysis (Priority-Based)")
+
+    current_row += 2  # add a couple of rows after the header for spacing
+
+    # ---- Closed Severity Table ----
+    ws[f'A{current_row}'] = "Closed Items by Severity"
+    ws[f'A{current_row}'].font = Font(bold=True)
+    for col in ['A', 'B']:
+        ws[f'{col}{current_row+1}'].fill = light_blue_fill
+        ws[f'{col}{current_row+1}'].border = border
+    current_row += 1
+
+    # Closed severity data
+    closed_severity = df[df['State_y'].isin(closed_states)].groupby('Priority').size().reset_index(name='Count')
+    closed_severity = closed_severity.sort_values('Count', ascending=False)
+
+    # Write Closed Severity headers
+    for col_idx, col_name in enumerate(closed_severity.columns, start=1):
+        ws.cell(row=current_row, column=col_idx, value=col_name).font = Font(bold=True)
+
+    # Write Closed Severity rows
+    for row_idx, row in enumerate(closed_severity.itertuples(index=False), start=current_row+1):
+        for col_idx, value in enumerate(row, start=1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.border = border  # Add border to data cells
+
+    # Pie chart for Closed Severity
+    pie_closed = PieChart()
+    pie_closed.title = None
+    labels = Reference(ws, min_col=1, min_row=current_row+1, max_row=current_row+len(closed_severity))
+    data = Reference(ws, min_col=2, min_row=current_row, max_row=current_row+len(closed_severity))
+    pie_closed.add_data(data, titles_from_data=True)
+    pie_closed.set_categories(labels)
+    state_chart_anchor = f"{chart_start_col}{current_row - 3}"
+    ws.add_chart(pie_closed, "E98")
+    put_chart_heading(ws, state_chart_anchor, "Closed Severity", span_cols=8, rows_above=1)
+    current_row += len(closed_severity) + 15  # space after Closed Severity
+
+    # ---- Open Severity Table ----
+    ws[f'A{current_row}'] = "Open Items by Severity"
+    ws[f'A{current_row}'].font = Font(bold=True)
+    for col in ['A', 'B']:
+        ws[f'{col}{current_row+1}'].fill = light_blue_fill
+        ws[f'{col}{current_row+1}'].border = border
+    current_row += 1
+
+    # Open severity data
+    open_severity = df[df['State_y'].isin(open_states)].groupby('Priority').size().reset_index(name='Count')
+    open_severity = open_severity.sort_values('Count', ascending=False)
+
+    # Write Open Severity headers
+    for col_idx, col_name in enumerate(open_severity.columns, start=1):
+        ws.cell(row=current_row, column=col_idx, value=col_name).font = Font(bold=True)
+
+    # Write Open Severity rows
+    for row_idx, row in enumerate(open_severity.itertuples(index=False), start=current_row+1):
+        for col_idx, value in enumerate(row, start=1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.border = border  # Add border to data cells
+
+    # Pie chart for Open Severity
+    pie_open = PieChart()
+    pie_open.title = None
+    labels = Reference(ws, min_col=1, min_row=current_row+1, max_row=current_row+len(open_severity))
+    data = Reference(ws, min_col=2, min_row=current_row, max_row=current_row+len(open_severity))
+    pie_open.add_data(data, titles_from_data=True)
+    pie_open.set_categories(labels)
+    state_chart_anchor = f"{chart_start_col}{current_row + 0}"
+    ws.add_chart(pie_open, "E121")
+    put_chart_heading(ws, state_chart_anchor, "Open Severity", span_cols=8, rows_above=1)
+    current_row += len(open_severity) + 5  # space after Open Severity
+
+
     # Adjust column widths
     ws.column_dimensions['A'].width = 28
     ws.column_dimensions['B'].width = 18
@@ -489,14 +580,28 @@ with col2:
                          (df['Work Item Type'] == 'Bug')]))
     
 with col3:
-    display_metric("Bugs Closed This Week",
-                  len(df[(df['Date Closed'] >= datetime.now() - timedelta(days=7)) &
-                         (df['Work Item Type'] == 'Bug') &
-                         (df['State_x'].isin(closed_states))]))
+    # display_metric("Bugs Closed This Week",
+    #             #   len(df[(df['Date Closed'] >= datetime.now() - timedelta(days=7)) &
+    #             #          (df['Work Item Type'] == 'Bug') &
+    #             #          (df['State_x'].isin(closed_states))]))
+    #             len(df[(df['Date Raised'] >= datetime.now() - timedelta(days=7)) &
+    #            (df['Work Item Type'] == 'Bug')])),
+    display_metric(
+            "Bugs Closed This Week",
+            len(
+                df[
+                    (df['Date Raised'] >= datetime.now() - timedelta(days=7)) &
+                    (df['Work Item Type'] == 'Bug')
+                ]
+            )
+        )
     display_metric("Hotfixes Deployed This Week",
-                  len(df[(df['Date Closed'] >= datetime.now() - timedelta(days=7)) &
-                         (df['Tags'].str.contains('Hot Fix', na=False)) &
-                         (df['State_x'].isin(closed_states))]))
+                #   len(df[(df['Date Closed'] >= datetime.now() - timedelta(days=7)) &
+                #          (df['Tags'].str.contains('Hot Fix', na=False)) &
+                #          (df['State_x'].isin(closed_states))]))
+                len(df[(df['Date Closed'] >= datetime.now() - timedelta(days=7)) &
+                    (df['Tags'].str.contains('Hot Fix', na=False)) &
+                    (df['State_y'].isin(closed_states))]))
     
 with col4:
     # Filter only closed items with positive days to close
@@ -586,6 +691,30 @@ with col1:
 
 with col2:
     create_bar_chart(assignee_counts, 'Assignee', 'Task Count', "Assignee Workload")
+
+# ==== SEVERITY ANALYSIS ====
+st.header("Severity Analysis (Priority-Based)")
+
+# Closed Severity
+closed_severity = df[df['State_y'].isin(closed_states)].groupby('Priority').size().reset_index(name='Count')
+closed_severity = closed_severity.sort_values('Count', ascending=False)
+
+# Open Severity
+open_severity = df[df['State_y'].isin(open_states)].groupby('Priority').size().reset_index(name='Count')
+open_severity = open_severity.sort_values('Count', ascending=False)
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("Closed Items by Severity")
+    st.dataframe(closed_severity, hide_index=True)
+    create_bar_chart(closed_severity, 'Priority', 'Count', "Closed Items Severity")
+
+with col2:
+    st.subheader("Open Items by Severity")
+    st.dataframe(open_severity, hide_index=True)
+    create_bar_chart(open_severity, 'Priority', 'Count', "Open Items Severity")
+
 
 # ==== ADDITIONAL VISUALIZATIONS ====
 # st.header("Additional Insights")
