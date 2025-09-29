@@ -446,6 +446,17 @@ def generate_excel_report(df):
     # Closed severity data
     closed_severity = df[df['State_y'].isin(closed_states)].groupby('Priority').size().reset_index(name='Count')
     closed_severity = closed_severity.sort_values('Count', ascending=False)
+    # Map priority codes to full names
+    priority_map = {
+        "H": "High",
+        "M": "Medium",
+        "C": "Critical",
+        "L": "Low",
+        "TBC":"TBC"
+    }
+
+    # Apply mapping
+    closed_severity['Priority'] = closed_severity['Priority'].map(priority_map)
 
     # Write Closed Severity headers
     for col_idx, col_name in enumerate(closed_severity.columns, start=1):
@@ -480,6 +491,16 @@ def generate_excel_report(df):
     # Open severity data
     open_severity = df[df['State_y'].isin(open_states)].groupby('Priority').size().reset_index(name='Count')
     open_severity = open_severity.sort_values('Count', ascending=False)
+    priority_map_ = {
+        "H": "High",
+        "M": "Medium",
+        "C": "Critical",
+        "L": "Low",
+        "TBC":"TBC"
+    }
+
+    # Apply mapping
+    open_severity['Priority'] = open_severity['Priority'].map(priority_map_)
 
     # Write Open Severity headers
     for col_idx, col_name in enumerate(open_severity.columns, start=1):
@@ -698,10 +719,30 @@ st.header("Severity Analysis (Priority-Based)")
 # Closed Severity
 closed_severity = df[df['State_y'].isin(closed_states)].groupby('Priority').size().reset_index(name='Count')
 closed_severity = closed_severity.sort_values('Count', ascending=False)
+priority_map = {
+    "H": "High",
+    "M": "Medium",
+    "C": "Critical",
+    "L": "Low",
+    "TBC":"TBC"
+}
+
+# Apply mapping
+closed_severity['Priority'] = closed_severity['Priority'].map(priority_map)
 
 # Open Severity
 open_severity = df[df['State_y'].isin(open_states)].groupby('Priority').size().reset_index(name='Count')
 open_severity = open_severity.sort_values('Count', ascending=False)
+priority_map_ = {
+    "H": "High",
+    "M": "Medium",
+    "C": "Critical",
+    "L": "Low",
+    "TBC":"TBC"
+}
+
+# Apply mapping
+open_severity['Priority'] = open_severity['Priority'].map(priority_map_)
 
 col1, col2 = st.columns(2)
 
